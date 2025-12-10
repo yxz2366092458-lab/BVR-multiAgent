@@ -1,0 +1,9 @@
+        if env.aim_block_1['aim1_f16_1'].active:
+            self.writer.add_scalar("aim1_f16_1_lat", env.aim_block['aim1_f16_1'].get_lat_gc_deg(),
+                                   env.aim_block['aim1_f16_1'].get_sim_time_sec())
+            self.writer.add_scalar("aim1_f16_1_long", env.aim_block['aim1_f16_1'].get_long_gc_deg(),
+                                   env.aim_block['aim1_f16_1'].get_sim_time_sec())
+            self.writer.add_scalar("aim1_f16_1_alt", env.aim_block['aim1_f16_1'].get_altitude(),
+                                   env.aim_block['aim1_f16_1'].get_sim_time_sec())
+        else:
+            pass
