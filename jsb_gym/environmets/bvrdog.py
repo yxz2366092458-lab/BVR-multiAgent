@@ -991,7 +991,7 @@ class BVRDogV2(object):
 
         self.update_states()
 
-        return self.f16_1.state
+        return self.f16_1.state, self.f16_2.state
 
     def reset_count(self):
         self.count = 0
@@ -1345,7 +1345,7 @@ class BVRDogV2(object):
                         self.aimr_block_2[key].reset_target(target_aircraft, set_active=True)
                         break
 
-    def step(self, action, action_type, blue_armed=False, red_armed=True):
+    def step(self, actions, action_type, blue_armed=False, red_armed=True):
         for _ in self.r_step:
             # Check if the missiles should be launched
             self.f16_missile_launch(blue_armed)
@@ -1355,7 +1355,9 @@ class BVRDogV2(object):
             self.step_aim()
 
             # Step blue aircraft
-            self.f16_1.step_BVR(action, action_type=action_type)
+            self.f16_1.step_BVR(actions[0], action_type=action_type)
+
+            self.f16_2.step_BVR(actions[1], action_type=action_type)
 
             # For second blue aircraft, we could implement some simple AI or use same actions
             # Here we'll use a simple pursuit behavior
@@ -1372,7 +1374,7 @@ class BVRDogV2(object):
             elif self.f16r_2_alive:
                 angle_to_closest_red = self.get_angle_to_firing_position(self.f16_2, self.f16r_2)
 
-            self.f16_2_actions[0] = self.tk.scale_between(
+            '''self.f16_2_actions[0] = self.tk.scale_between(
                 a=self.tk.truncate_heading(angle_to_closest_red),
                 a_min=self.conf.sf['head_min'],
                 a_max=self.conf.sf['head_max']
@@ -1382,7 +1384,7 @@ class BVRDogV2(object):
                 a_min=self.conf.sf['alt_min'],
                 a_max=self.conf.sf['alt_max']
             )
-            self.f16_2.step_BVR(self.f16_2_actions, action_type=action_type)
+            self.f16_2.step_BVR(self.f16_2_actions, action_type=action_type)'''
 
             # Tick behavior trees for red aircraft
             self.BTr_1.tick()
@@ -1424,5 +1426,5 @@ class BVRDogV2(object):
                 first_key = list(self.aim_block_1.keys())[0]
                 self.logs.record(aim=self.aim_block_1[first_key], tgt=self.f16_1)
 
-        return self.f16_1.state, reward, done, None
+        return self.f16_1.state, self.f16_2.state, reward, done, None
 
