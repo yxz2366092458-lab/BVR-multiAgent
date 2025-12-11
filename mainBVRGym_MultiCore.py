@@ -206,12 +206,10 @@ def get_tb_obs_dog(env):
     tb_obs['Blue_alive'] = env.f16_alive
     tb_obs['Red_alive'] = env.f16r_alive
 
-
     tb_obs['aim1_active'] = env.aim_block['aim1'].active
     tb_obs['aim1_alive'] = env.aim_block['aim1'].alive
     tb_obs['aim1_target_lost'] = env.aim_block['aim1'].target_lost
     tb_obs['aim1_target_hit'] = env.aim_block['aim1'].target_hit
-
 
     tb_obs['aim2_active'] = env.aim_block['aim2'].active
     tb_obs['aim2_alive'] = env.aim_block['aim2'].alive
@@ -228,21 +226,102 @@ def get_tb_obs_dog(env):
     tb_obs['aim2r_target_lost'] = env.aimr_block['aim2r'].target_lost
     tb_obs['aim2r_target_hit'] = env.aimr_block['aim2r'].target_hit
 
-
     if env.aim_block['aim1'].target_lost:
         tb_obs['aim1_MD'] = env.aim_block['aim1'].position_tgt_NED_norm
-        
+
     if env.aim_block['aim2'].target_lost:
         tb_obs['aim2_lost'] = 1
         tb_obs['aim2_MD'] = env.aim_block['aim2'].position_tgt_NED_norm
-    
+
     if env.aimr_block['aim1r'].target_lost:
         tb_obs['aim1r_lost'] = 1
         tb_obs['aim1r_MD'] = env.aimr_block['aim1r'].position_tgt_NED_norm
-    
+
     if env.aimr_block['aim2r'].target_lost:
         tb_obs['aim2r_lost'] = 1
         tb_obs['aim2r_MD'] = env.aimr_block['aim2r'].position_tgt_NED_norm
+
+    return tb_obs
+
+def get_tb_obs_dogv2(env):
+    tb_obs = {}
+    tb_obs['Blue_ground'] = env.reward_f16_hit_ground
+    tb_obs['Red_ground'] = env.reward_f16r_hit_ground
+    tb_obs['maxTime'] = env.reward_max_time
+
+    tb_obs['f16_1_alive'] = env.f16_1_alive
+    tb_obs['f16_2_alive'] = env.f16_2_alive
+    tb_obs['f16r_1_alive'] = env.f16r_1_alive
+    tb_obs['f16r_2_alive'] = env.f16r_2_alive
+
+
+    tb_obs['aim1_1_active'] = env.aim_block_1['aim1_f16_1'].active
+    tb_obs['aim1_1_alive'] = env.aim_block_1['aim1_f16_1'].alive
+    tb_obs['aim1_1_target_lost'] = env.aim_block_1['aim1_f16_1'].target_lost
+    tb_obs['aim1_1_target_hit'] = env.aim_block_1['aim1_f16_1'].target_hit
+
+    tb_obs['aim2_1_active'] = env.aim_block_1['aim2_f16_1'].active
+    tb_obs['aim2_1_alive'] = env.aim_block_1['aim2_f16_1'].alive
+    tb_obs['aim2_1_target_lost'] = env.aim_block_1['aim2_f16_1'].target_lost
+    tb_obs['aim2_1_target_hit'] = env.aim_block_1['aim2_f16_1'].target_hit
+
+    tb_obs['aim1_2_active'] = env.aim_block_2['aim1_f16_2'].active
+    tb_obs['aim1_2_alive'] = env.aim_block_2['aim1_f16_1'].alive
+    tb_obs['aim1_2_target_lost'] = env.aim_block_2['aim1_f16_1'].target_lost
+    tb_obs['aim1_2_target_hit'] = env.aim_block_2['aim1_f16_1'].target_hit
+
+    tb_obs['aim2_2_active'] = env.aim_block_2['aim2_f16_2'].active
+    tb_obs['aim2_2_alive'] = env.aim_block_2['aim2_f16_2'].alive
+    tb_obs['aim2_2_target_lost'] = env.aim_block_2['aim2_f16_2'].target_lost
+    tb_obs['aim2_2_target_hit'] = env.aim_block_2['aim2_f16_2'].target_hit
+
+    tb_obs['aim1r_1_active'] = env.aimr_block_1['aim1_f16r_1'].active
+    tb_obs['aim1r_alive'] = env.aimr_block_1['aim1_f16r_1'].alive
+    tb_obs['aim1r_target_lost'] = env.aimr_block_1['aim1_f16r_1'].target_lost
+    tb_obs['aim1r_target_hit'] = env.aimr_block_1['aim1_f16r_1'].target_hit
+
+    tb_obs['aim2r_1_active'] = env.aimr_block_1['aim2_f16r_1'].active
+    tb_obs['aim2r_alive'] = env.aimr_block_1['aim2_f16r_1'].alive
+    tb_obs['aim2r_target_lost'] = env.aimr_block_1['aim2_f16r_1'].target_lost
+    tb_obs['aim2r_target_hit'] = env.aimr_block_1['aim2_f16r_1'].target_hit
+
+    tb_obs['aim1r_2_active'] = env.aimr_block_2['aim1_f16r_2'].active
+    tb_obs['aim1r_2_alive'] = env.aimr_block_2['aim1_f16r_2'].alive
+    tb_obs['aim1r_2_target_lost'] = env.aimr_block_2['aim1_f16r_2'].target_lost
+    tb_obs['aim1r_2_target_hit'] = env.aimr_block_2['aim1_f16r_2'].target_hit
+
+    tb_obs['aim2r_2_active'] = env.aimr_block_2['aim2_f16r_2'].active
+    tb_obs['aim2r_2_alive'] = env.aimr_block_2['aim2_f16r_2'].alive
+    tb_obs['aim2r_2_target_lost'] = env.aimr_block_2['aim2_f16r_2'].target_lost
+    tb_obs['aim2r_2_target_hit'] = env.aimr_block_2['aim2_f16r_2'].target_hit
+
+    if env.aim_block_1['aim1_f16_1'].target_lost:
+        tb_obs['aim1_f16_1_MD'] = env.aim_block_1['aim1_f16_1'].position_tgt_NED_norm
+
+    if env.aim_block_1['aim2_f16_1'].target_lost:
+        tb_obs['aim2_f16_1_MD'] = env.aim_block_1['aim2_f16_1'].position_tgt_NED_norm
+
+    if env.aim_block_2['aim1_f16_2'].target_lost:
+        tb_obs['aim1_f16_2_MD'] = env.aim_block_2['aim1_f16_2'].position_tgt_NED_norm
+
+    if env.aim_block_2['aim2_f16_2'].target_lost:
+        tb_obs['aim2_f16_2_MD'] = env.aim_block_2['aim2_f16_2'].position_tgt_NED_norm
+    
+    if env.aimr_block_1['aim1_f16r_1'].target_lost:
+        tb_obs['aim1_f16r_1_lost'] = 1
+        tb_obs['aim1_f16r_1_MD'] = env.aimr_block_1['aim1_f16r_1'].position_tgt_NED_norm
+    
+    if env.aimr_block_1['aim2_f16r_1'].target_lost:
+        tb_obs['aim2_f16r_1_lost'] = 1
+        tb_obs['aim2_f16r_1_MD'] = env.aimr_block_1['aim2_f16r_1'].position_tgt_NED_norm
+
+    if env.aimr_block_2['aim1_f16r_2'].target_lost:
+        tb_obs['aim1_f16r_2_lost'] = 1
+        tb_obs['aim1_f16r_2_MD'] = env.aimr_block_2['aim1_f16r_2'].position_tgt_NED_norm
+
+    if env.aimr_block_2['aim2_f16r_2'].target_lost:
+        tb_obs['aim2_f16r_2_lost'] = 1
+        tb_obs['aim2_f16r_2_MD'] = env.aimr_block['aim2_f16r_2'].position_tgt_NED_norm
 
     return tb_obs
 
@@ -369,7 +448,7 @@ def train_mappo(args):
         state_dict = env.reset()
 
         # 提取各个智能体的状态
-        agent_states_current = [state_dict[f'aim{i + 1}'] for i in range(n_agents)]
+        agent_states_current = [state_dict[i] for i in range(n_agents)]
         global_state = np.concatenate(agent_states_current)
 
         # 初始化动作
@@ -400,12 +479,12 @@ def train_mappo(args):
             elif env_args['track'] == 'DogR':
                 next_state_dict, reward, done, _ = env.step(
                     actions[0], action_type=0, blue_armed=False, red_armed=True)
-            next_state_dict = env.step(
+            next_state_dict, reward, done, _ = env.step(
                 actions, action_type=0, blue_armed=True, red_armed=True
             )
 
             # 更新状态
-            agent_states_current = [next_state_dict[f'aim{i + 1}'] for i in range(n_agents)]
+            agent_states_current = [next_state_dict[i] for i in range(n_agents)]
             next_global_state = np.concatenate(agent_states_current)
 
             # 所有智能体共享相同的奖励和终止信号
@@ -421,10 +500,10 @@ def train_mappo(args):
 
         running_reward += reward
 
-    running_reward = running_reward / env_args[0]['eps']
+    running_reward = running_reward / env_args['eps']
 
     # 获取TensorBoard观测值
-    tb_obs = get_tb_obs_dog(env) if env_args[0]['track'] in ['Dog', 'DogR'] else {}
+    tb_obs = get_tb_obs_dogv2(env) if env_args['track'] in ['Dog', 'DogR', 'Dogv2'] else {}
 
     # 处理记忆数据
     processed_memories = []

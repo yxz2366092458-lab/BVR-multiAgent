@@ -991,7 +991,7 @@ class BVRDogV2(object):
 
         self.update_states()
 
-        return self.f16_1.state, self.f16_2.state
+        return np.array([self.f16_1.state, self.f16_2.state])
 
     def reset_count(self):
         self.count = 0
@@ -1426,5 +1426,5 @@ class BVRDogV2(object):
                 first_key = list(self.aim_block_1.keys())[0]
                 self.logs.record(aim=self.aim_block_1[first_key], tgt=self.f16_1)
 
-        return self.f16_1.state, self.f16_2.state, reward, done, None
+        return np.array([self.f16_1.state, self.f16_2.state]), reward, done, None
 
