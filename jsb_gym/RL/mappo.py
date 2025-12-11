@@ -225,7 +225,7 @@ class MAPPO:
             dones: Terminal flags for each timestep
             use_gpu: Whether to use GPU
         """
-        self.set_device(use_gpu, set_policy=True)
+        self.set_device(use_gpu)
 
         n_timesteps = len(shared_rewards)
 
