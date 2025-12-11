@@ -6,8 +6,9 @@ from tqdm import tqdm
 from torch.utils.tensorboard import SummaryWriter
 import torch
 import multiprocessing
-from jsb_gym.RL.lstm_ppo import Memory, PPO
-from jsb_gym.environmets.config import BVRGym_PPO1, BVRGym_PPO2, BVRGym_PPODog
+from jsb_gym.RL.ppo import Memory, PPO
+from jsb_gym.RL.mappo import Memory, MAPPO
+from jsb_gym.environmets.config import BVRGym_PPO1, BVRGym_PPO2, BVRGym_PPODog, BVRGym_MAPPODog
 from numpy.random import seed
 from jsb_gym.TAU.config import aim_evs_BVRGym, f16_evs_BVRGym, aim_dog_BVRGym, f16_dog_BVRGym
 
@@ -245,10 +246,210 @@ def get_tb_obs_dog(env):
 
     return tb_obs
 
+def runMAPPO(args):
+    from jsb_gym.RL.config.mappo_evs_MAPPO_BVRDog import conf_mappo
+    env = bvrdog.BVRDogV2(BVRGym_MAPPODog, args, aim_dog_BVRGym, f16_dog_BVRGym)
+    torch_save = 'jsb_gym/logs/RL/DogMR.pth'
+    state_scale = 2
+
+    writer = SummaryWriter('runs/' + args['track'])
+    state_dim = env.observation_space
+    action_dim = env.action_space.shape[1]
+    #memory = Memory()
+    #mappo = MAPPO(state_dim * state_scale, action_dim, conf_mappo, use_gpu=False)
+    #pool = multiprocessing.Pool(processes=int(args['cpu_cores']), initializer=init_pool)
+
+    for i_episode in range(1, args['Eps']+1):
+        # 初始化MAPPO算法
+        mappo = MAPPO(state_dim, action_dim, n_agents=2, conf_ppo=conf_mappo, use_gpu=False)
+        pool = multiprocessing.Pool(processes=int(args['cpu_cores']), initializer=init_pool)
+
+        for i_episode in range(1, args['Eps'] + 1):
+            # 获取当前策略状态字典
+            agent_states = []
+            agent_old_states = []
+            centralized_critic_state = mappo.centralized_critic.state_dict()
+            critic_optimizer_state = mappo.critic_optimizer.state_dict()
+
+            for i in range(mappo.n_agents):
+                agent_states.append(mappo.agents[i].state_dict())
+                agent_old_states.append(mappo.agents_old[i].state_dict())
+
+            input_data = [(args, agent_states, agent_old_states, centralized_critic_state,
+                           critic_optimizer_state, conf_mappo, state_scale) for _ in range(args['cpu_cores'])]
+
+            running_rewards = []
+            tb_obs_list = []
+
+            # 并行执行训练
+            results = pool.map(train_mappo, input_data)
+
+            # 收集所有进程的经验数据
+            all_memories = []
+            all_global_states = []
+            all_shared_rewards = []
+            all_dones = []
+
+            for idx, result in enumerate(results):
+                memories, global_states, shared_rewards, dones, running_reward, tb_obs = result
+                all_memories.append(memories)
+                all_global_states.extend(global_states)
+                all_shared_rewards.extend(shared_rewards)
+                all_dones.extend(dones)
+                running_rewards.append(running_reward)
+                tb_obs_list.append(tb_obs)
+
+            # 使用收集的数据更新MAPPO模型
+            mappo.set_device(use_gpu=True)
+            mappo.update(all_memories[0], all_global_states, all_shared_rewards, all_dones, use_gpu=True)
+            mappo.set_device(use_gpu=False)
+            torch.cuda.empty_cache()
+
+            # 记录训练指标
+            writer.add_scalar("running_rewards", sum(running_rewards) / len(running_rewards), i_episode)
+
+            # 合并tensorboard观察值
+            tb_obs_avg = {}
+            if tb_obs_list:
+                for key in tb_obs_list[0]:
+                    tb_obs_avg[key] = sum(obs.get(key, 0) for obs in tb_obs_list) / len(tb_obs_list)
+                    writer.add_scalar(key, tb_obs_avg[key], i_episode)
+
+            # 定期保存模型
+            if i_episode % 500 == 0:
+                mappo.save_models(torch_save + 'DogMR_' + str(i_episode) + '.pth')
+
+        pool.close()
+        pool.join()
+
+
+def train_mappo(args):
+    """
+    为MAPPO训练准备的并行训练函数
+    """
+    # 解析输入参数
+    env_args, agent_states, agent_old_states, centralized_critic_state, \
+        critic_optimizer_state, conf_mappo, state_scale = args
+    print(env_args)
+
+    # 创建环境
+    env = bvrdog.BVRDogV2(BVRGym_MAPPODog, env_args, aim_dog_BVRGym, f16_dog_BVRGym)
+
+    # 初始化MAPPO算法
+    state_dim = env.observation_space
+    action_dim = env.action_space.shape[1]
+    n_agents = 2  # 固定为2个智能体
+
+    mappo = MAPPO(state_dim, action_dim, n_agents=n_agents, conf_ppo=conf_mappo, use_gpu=False)
+
+    # 加载模型状态
+    for i in range(n_agents):
+        mappo.agents[i].load_state_dict(agent_states[i])
+        mappo.agents_old[i].load_state_dict(agent_old_states[i])
+    mappo.centralized_critic.load_state_dict(centralized_critic_state)
+
+    # 设置模型为评估模式
+    for agent in mappo.agents:
+        agent.eval()
+    for agent_old in mappo.agents_old:
+        agent_old.eval()
+    mappo.centralized_critic.eval()
+
+    # 初始化每个智能体的记忆
+    memories = [Memory() for _ in range(n_agents)]
+    running_reward = 0.0
+
+    # 存储全局状态、共享奖励和终止标志
+    global_states = []
+    shared_rewards = []
+    dones = []
+
+    for i_episode in range(1, env_args['eps'] + 1):
+        # 重置环境
+        state_dict = env.reset()
+
+        # 提取各个智能体的状态
+        agent_states_current = [state_dict[f'aim{i + 1}'] for i in range(n_agents)]
+        global_state = np.concatenate(agent_states_current)
+
+        # 初始化动作
+        actions = [np.zeros(3) for _ in range(n_agents)]
+        for i in range(n_agents):
+            # 默认不使用加力燃烧室
+            actions[i][2] = 0.0
+
+        done = False
+
+        while not done:
+            # 存储全局状态
+            global_states.append(global_state)
+
+            # 每个智能体选择动作
+            agent_actions = []
+            for agent_id in range(n_agents):
+                action = mappo.select_action(agent_id, agent_states_current[agent_id], memories[agent_id])
+                agent_actions.append(action)
+                # 将动作映射到环境中（前两个维度是控制输入）
+                actions[agent_id][0] = action[0]  # 航向
+                actions[agent_id][1] = action[1]  # 高度
+
+            # 执行动作
+            if env_args['track'] == 'Dog':
+                next_state_dict, reward, done, _ = env.step(
+                    actions[0], action_type=0, blue_armed=True, red_armed=True)
+            elif env_args['track'] == 'DogR':
+                next_state_dict, reward, done, _ = env.step(
+                    actions[0], action_type=0, blue_armed=False, red_armed=True)
+            next_state_dict = env.step(
+                actions, action_type=0, blue_armed=True, red_armed=True
+            )
+
+            # 更新状态
+            agent_states_current = [next_state_dict[f'aim{i + 1}'] for i in range(n_agents)]
+            next_global_state = np.concatenate(agent_states_current)
+
+            # 所有智能体共享相同的奖励和终止信号
+            shared_rewards.append(reward)
+            dones.append(done)
+
+            # 为每个智能体存储奖励和终止信号
+            for agent_id in range(n_agents):
+                memories[agent_id].rewards.append(reward)
+                memories[agent_id].is_terminals.append(done)
+
+            global_state = next_global_state
+
+        running_reward += reward
+
+    running_reward = running_reward / env_args[0]['eps']
+
+    # 获取TensorBoard观测值
+    tb_obs = get_tb_obs_dog(env) if env_args[0]['track'] in ['Dog', 'DogR'] else {}
+
+    # 处理记忆数据
+    processed_memories = []
+    for memory in memories:
+        actions = [i.detach().numpy() for i in memory.actions]
+        states = [i.detach().numpy() for i in memory.states]
+        logprobs = [i.detach().numpy() for i in memory.logprobs]
+        rewards = [i for i in memory.rewards]
+        is_terminals = [i for i in memory.is_terminals]
+
+        # 创建新的内存对象用于返回
+        processed_memory = Memory()
+        processed_memory.actions = actions
+        processed_memory.states = states
+        processed_memory.logprobs = logprobs
+        processed_memory.rewards = rewards
+        processed_memory.is_terminals = is_terminals
+        processed_memories.append(processed_memory)
+
+    return [processed_memories, global_states, shared_rewards, dones, running_reward, tb_obs]
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("-v", "--vizualize", action='store_true', help="Render in FG")
-    parser.add_argument("-track", "--track", type = str, help="Tracks: M1, M2, Dog, DogR", default=' ')
+    parser.add_argument("-track", "--track", type = str, help="Tracks: M1, M2, Dog, DogR, Dogv2", default=' ')
     parser.add_argument("-cpus", "--cpu_cores", type = int, help="Nuber of cores to use", default= None)
     parser.add_argument("-Eps", "--Eps", type = int, help="Nuber of cores to use", default= int(1e3))
     parser.add_argument("-eps", "--eps", type = int, help="Nuber of cores to use", default= 5)
@@ -258,8 +459,11 @@ if __name__ == '__main__':
     #if args['seed'] != None:
     #    torch.manual_seed(args['seed'])
     #    np.random.seed(args['seed'])
-    
-    runPPO(args)
+
+    if args['track'] == 'Dogv2':
+        runMAPPO(args)
+    else:
+        runPPO(args)
 
 # training: 
 # python mainBVRGym_MultiCore.py -track M1  -cpus 10 -Eps 100000 -eps 1

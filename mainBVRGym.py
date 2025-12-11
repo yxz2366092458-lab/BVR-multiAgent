@@ -401,15 +401,15 @@ def train_BVRDogV2(args):
 
     for i_episode in tqdm(range(1, max_episodes + 1)):
         running_reward = 0.0
-        state = env.reset()
+        state_1, state_2 = env.reset()
         done = False
 
         # Initialize actions for both agents
-        blue_action = np.zeros(3)
-        red_action = np.zeros(3)
+        f16_1_action = np.zeros(3)
+        f16_2_action = np.zeros(3)
         # Set thrust for both agents
-        blue_action[2] = 0.0
-        red_action[2] = 0.0
+        f16_1_action[2] = 0.0
+        f16_2_action[2] = 0.0
 
         print('-' * 10)
 
@@ -418,21 +418,23 @@ def train_BVRDogV2(args):
             global_states = []  # For centralized critic
 
             # Get action for blue agent (agent 0)
-            blue_act = mappo.select_action(0, state, memories[0])
-            blue_action[0] = blue_act[0]
-            blue_action[1] = blue_act[1]
-            global_states.append(state)
+            f16_1_act = mappo.select_action(0, state_1, memories[0])
+            f16_1_action[0] = f16_1_act[0]
+            f16_1_action[1] = f16_1_act[1]
+            global_states.append(state_1)
 
             # Get action for red agent (agent 1)
-            red_act = mappo.select_action(1, state, memories[1])
-            red_action[0] = red_act[0]
-            red_action[1] = red_act[1]
-            global_states.append(state)
+            f16_2_act = mappo.select_action(1, state_2, memories[1])
+            f16_2_action[0] = f16_2_act[0]
+            f16_2_action[1] = f16_2_act[1]
+            global_states.append(state_2)
 
+            blue_action = np.array([f16_1_action, f16_2_action])
             # Execute actions in environment
             # Blue agent action
-            state, reward, done, _ = env.step(blue_action, action_type=maneuver.value,
+            state_1, state_2, reward, done, _ = env.step(blue_action, action_type=maneuver.value,
                                               blue_armed=True, red_armed=True)
+
 
             # Record environment state
             logs.record(env)
